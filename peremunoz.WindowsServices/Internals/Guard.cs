@@ -1,6 +1,4 @@
-﻿using System.Runtime.Versioning;
-
-namespace peremunoz.WindowsServices.Internals;
+﻿namespace peremunoz.WindowsServices.Internals;
 
 internal static class Guard
 {

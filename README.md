@@ -10,6 +10,7 @@ A developer-friendly .NET library for managing Windows services programmatically
 - **Uninstall** - Remove services safely
 - **Idempotent** - Operations handle already-running/stopped services gracefully
 - **Non-throwing queries** - `TryGetAsync` returns `null` instead of throwing exceptions
+- **Multi-targeted** - Supports .NET 8+, .NET 9+, .NET 10+
 
 ## Installation
 
@@ -19,9 +20,16 @@ dotnet add package peremunoz.WindowsServices
 
 ## Requirements
 
-- .NET 10 or higher
-- Windows operating system
-- Administrator privileges for install/uninstall/control operations
+- **.NET 8.0 or higher** (including .NET 9 and .NET 10)
+- **Windows operating system**
+- **Administrator privileges** for install/uninstall/control operations
+
+## Supported Platforms
+
+| Platform | Supported Versions |
+|----------|-------------------|
+| .NET | 8.0, 9.0, 10.0+ |
+| Operating System | Windows only |
 
 ## Usage
 

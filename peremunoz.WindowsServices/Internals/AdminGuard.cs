@@ -4,6 +4,7 @@ namespace peremunoz.WindowsServices.Internals;
 
 internal static class AdminGuard
 {
+    [SupportedOSPlatform("windows")]
     public static bool IsAdministrator()
     {
         using var identity = WindowsIdentity.GetCurrent();

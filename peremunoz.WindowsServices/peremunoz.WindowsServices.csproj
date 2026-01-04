@@ -1,16 +1,66 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0-windows;net9.0-windows;net8.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- Package Metadata -->
+    <PackageId>peremunoz.WindowsServices</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Pere Muñoz</Authors>
+    <Company>peremunoz</Company>
+    <Product>peremunoz.WindowsServices</Product>
+    <Description>Developer-friendly Windows Service management (install/update/start/stop/restart/status). Supports .NET 8+.</Description>
+    <Copyright>Copyright © 2026 Pere Muñoz</Copyright>
+    
+    <!-- Package Details -->
+    <PackageProjectUrl>https://github.com/peremunoz/WindowsServices</PackageProjectUrl>
     <RepositoryUrl>https://github.com/peremunoz/WindowsServices</RepositoryUrl>
-    <PackageTags>windows;service;scm</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>windows;service;scm;service-management;windows-service;service-controller</PackageTags>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Description>Developer-friendly Windows Service management (install/update/start/stop/restart/status).</Description>
+    <PackageReleaseNotes>Initial v1.0 release with full Windows Service management capabilities.</PackageReleaseNotes>
+    
+    <!-- Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Title>peremunoz.WindowsServices</Title>
+    <PackageIcon>icon.jpg</PackageIcon>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net10.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0|AnyCPU'">
+    <IsPublishable>True</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="icon.jpg" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\LICENSE.txt">
@@ -29,9 +79,17 @@
 	  </AssemblyAttribute>
   </ItemGroup>
 
-
-	<ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="icon.jpg">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
   <ItemGroup>
