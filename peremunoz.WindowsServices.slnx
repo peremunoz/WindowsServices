@@ -1,1 +1,4 @@
-<Solution />
+<Solution>
+  <Project Path="peremunoz.WindowsServices.Tests/peremunoz.WindowsServices.Tests.csproj" />
+  <Project Path="peremunoz.WindowsServices/peremunoz.WindowsServices.csproj" />
+</Solution>

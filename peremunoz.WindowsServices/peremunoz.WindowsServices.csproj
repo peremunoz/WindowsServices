@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RepositoryUrl>https://github.com/peremunoz/WindowsServices</RepositoryUrl>
+    <PackageTags>windows;service;scm</PackageTags>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Developer-friendly Windows Service management (install/update/start/stop/restart/status).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+	  <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+		  <_Parameter1>peremunoz.WindowsServices.Tests</_Parameter1>
+	  </AssemblyAttribute>
+  </ItemGroup>
+
+
+	<ItemGroup>
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="System.Runtime.Versioning" />
+  </ItemGroup>
+
+</Project>
