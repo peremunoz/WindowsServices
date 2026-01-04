@@ -1,16 +1,27 @@
-﻿using System.ServiceProcess;
-using System.ComponentModel;
+﻿using peremunoz.WindowsServices.Helpers;
 using peremunoz.WindowsServices.Internals;
+using peremunoz.WindowsServices.Native;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.ServiceProcess;
 using TimeoutException = System.ServiceProcess.TimeoutException;
 
 namespace peremunoz.WindowsServices;
 
+/// <summary>
+/// Provides Windows-specific implementation of service management operations.
+/// </summary>
+/// <remarks>
+/// This class is only supported on Windows platforms and uses the Windows Service Control Manager (SCM) APIs.
+/// Most operations require administrator privileges to succeed.
+/// </remarks>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsServiceManager : IServiceManager
 {
     private static readonly TimeSpan DefaultStartStopTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DefaultRestartTimeout = TimeSpan.FromSeconds(60);
 
+    /// <inheritdoc />
     public Task<ServiceInfo?> TryGetAsync(string name, CancellationToken ct = default)
     {
         Guard.EnsureWindows();
@@ -37,18 +48,163 @@ public sealed class WindowsServiceManager : IServiceManager
         }
     }
 
+    /// <inheritdoc />
     public async Task<ServiceStatus> GetStatusAsync(string name, CancellationToken ct = default)
     {
         var info = await TryGetAsync(name, ct).ConfigureAwait(false);
         return info?.Status ?? ServiceStatus.NotInstalled;
     }
 
+    /// <inheritdoc />
     public Task<OpResult> InstallOrUpdateAsync(ServiceSpec spec, CancellationToken ct = default)
-        => Task.FromResult(OpResult.Fail("NOT_IMPLEMENTED", "Install/Update will be implemented in Milestone 2 (SCM APIs)."));
+    {
+        Guard.EnsureWindows();
+        if (spec is null) throw new ArgumentNullException(nameof(spec));
+        Guard.NotNullOrWhiteSpace(spec.Name, nameof(spec.Name));
+        Guard.NotNullOrWhiteSpace(spec.ExePath, nameof(spec.ExePath));
 
-    public Task<OpResult> UninstallIfExistsAsync(string name, CancellationToken ct = default)
-        => Task.FromResult(OpResult.Fail("NOT_IMPLEMENTED", "Uninstall will be implemented in Milestone 2 (SCM APIs)."));
+        try
+        {
+            ct.ThrowIfCancellationRequested();
 
+            var startType = spec.StartMode switch
+            {
+                ServiceStartMode.Automatic => ScmNative.SERVICE_AUTO_START,
+                ServiceStartMode.Manual => ScmNative.SERVICE_DEMAND_START,
+                ServiceStartMode.Disabled => ScmNative.SERVICE_DISABLED,
+                _ => ScmNative.SERVICE_DEMAND_START
+            };
+
+            var displayName = string.IsNullOrWhiteSpace(spec.DisplayName) ? spec.Name : spec.DisplayName!;
+            var imagePath = Internals.ImagePathBuilder.Build(spec.ExePath, spec.Arguments);
+
+            using var scm = ScmNative.OpenSCManager(null, null, ScmNative.SC_MANAGER_CONNECT | ScmNative.SC_MANAGER_CREATE_SERVICE);
+            if (scm.IsInvalid) ScmNative.ThrowLastWin32("OpenSCManager");
+
+            // Try open existing first
+            using var service = ScmNative.OpenService(scm, spec.Name, ScmNative.SERVICE_ALL_ACCESS);
+            if (!service.IsInvalid)
+            {
+                // Update basic config
+                if (!ScmNative.ChangeServiceConfig(
+                        service,
+                        dwServiceType: ScmNative.SERVICE_WIN32_OWN_PROCESS,
+                        dwStartType: startType,
+                        dwErrorControl: ScmNative.SERVICE_ERROR_NORMAL,
+                        lpBinaryPathName: imagePath,
+                        lpLoadOrderGroup: null,
+                        lpdwTagId: IntPtr.Zero,
+                        lpDependencies: null,
+                        lpServiceStartName: null,
+                        lpPassword: null,
+                        lpDisplayName: displayName))
+                {
+                    ScmNative.ThrowLastWin32("ChangeServiceConfig");
+                }
+
+                ServiceConfigHelpers.ApplyDescription(service, spec.Description);
+                ServiceConfigHelpers.ApplyDelayedAutoStart(service, spec.DelayedAutoStart);
+
+                return Task.FromResult(OpResult.Ok($"Updated service '{spec.Name}'"));
+            }
+
+            // If open failed because it doesn't exist, create it
+            var err = Marshal.GetLastWin32Error();
+            if (err != ScmNative.ERROR_SERVICE_DOES_NOT_EXIST)
+                return Task.FromResult(OpResult.Fail("WIN32_ERROR", new System.ComponentModel.Win32Exception(err).Message, new System.ComponentModel.Win32Exception(err)));
+
+            using var created = ScmNative.CreateService(
+                scm,
+                lpServiceName: spec.Name,
+                lpDisplayName: displayName,
+                dwDesiredAccess: ScmNative.SERVICE_ALL_ACCESS,
+                dwServiceType: ScmNative.SERVICE_WIN32_OWN_PROCESS,
+                dwStartType: startType,
+                dwErrorControl: ScmNative.SERVICE_ERROR_NORMAL,
+                lpBinaryPathName: imagePath,
+                lpLoadOrderGroup: null,
+                lpdwTagId: IntPtr.Zero,
+                lpDependencies: null,
+                lpServiceStartName: null,
+                lpPassword: null);
+
+            if (created.IsInvalid) ScmNative.ThrowLastWin32("CreateService");
+
+            ServiceConfigHelpers.ApplyDescription(created, spec.Description);
+            ServiceConfigHelpers.ApplyDelayedAutoStart(created, spec.DelayedAutoStart);
+
+            return Task.FromResult(OpResult.Ok($"Installed service '{spec.Name}'"));
+        }
+        catch (OperationCanceledException)
+        {
+            return Task.FromResult(OpResult.Fail("CANCELED", "Operation canceled."));
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            return Task.FromResult(OpResult.Fail("WIN32_ERROR", ex.Message, ex));
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult(OpResult.Fail("ERROR", ex.Message, ex));
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OpResult> UninstallIfExistsAsync(string name, CancellationToken ct = default)
+    {
+        Guard.EnsureWindows();
+        Guard.NotNullOrWhiteSpace(name, nameof(name));
+
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+
+            // Best-effort stop first (ignore if not installed)
+            var status = await GetStatusAsync(name, ct).ConfigureAwait(false);
+            if (status != ServiceStatus.NotInstalled && status != ServiceStatus.Stopped)
+            {
+                _ = await StopAsync(name, TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+            }
+
+            using var scm = ScmNative.OpenSCManager(null, null, ScmNative.SC_MANAGER_CONNECT);
+            if (scm.IsInvalid) ScmNative.ThrowLastWin32("OpenSCManager");
+
+            using var service = ScmNative.OpenService(scm, name, ScmNative.DELETE);
+            if (service.IsInvalid)
+            {
+                var err = Marshal.GetLastWin32Error();
+                if (err == ScmNative.ERROR_SERVICE_DOES_NOT_EXIST)
+                    return OpResult.Ok($"Service '{name}' not installed (no-op).");
+
+                return OpResult.Fail("WIN32_ERROR", new System.ComponentModel.Win32Exception(err).Message, new System.ComponentModel.Win32Exception(err));
+            }
+
+            if (!ScmNative.DeleteService(service))
+            {
+                var err = Marshal.GetLastWin32Error();
+                if (err == ScmNative.ERROR_SERVICE_MARKED_FOR_DELETE)
+                    return OpResult.Ok($"Service '{name}' already marked for delete.");
+
+                ScmNative.ThrowLastWin32("DeleteService");
+            }
+
+            return OpResult.Ok($"Uninstalled service '{name}'");
+        }
+        catch (OperationCanceledException)
+        {
+            return OpResult.Fail("CANCELED", "Operation canceled.");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            return OpResult.Fail("WIN32_ERROR", ex.Message, ex);
+        }
+        catch (Exception ex)
+        {
+            return OpResult.Fail("ERROR", ex.Message, ex);
+        }
+    }
+
+    /// <inheritdoc />
     public Task<OpResult> StartAsync(string name, TimeSpan? timeout = null, CancellationToken ct = default)
         => ControlAsync(
             name,
@@ -57,6 +213,7 @@ public sealed class WindowsServiceManager : IServiceManager
             desired: ServiceControllerStatus.Running,
             ct);
 
+    /// <inheritdoc />
     public Task<OpResult> StopAsync(string name, TimeSpan? timeout = null, CancellationToken ct = default)
         => ControlAsync(
             name,
@@ -65,6 +222,7 @@ public sealed class WindowsServiceManager : IServiceManager
             desired: ServiceControllerStatus.Stopped,
             ct);
 
+    /// <inheritdoc />
     public async Task<OpResult> RestartAsync(string name, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         timeout ??= DefaultRestartTimeout;
