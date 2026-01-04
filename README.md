@@ -1,6 +1,15 @@
 # peremunoz.WindowsServices
 
-A developer-friendly .NET library for managing Windows services programmatically.
+> A developer-friendly .NET library for managing Windows services programmatically.
+
+[![NuGet](https://img.shields.io/nuget/v/peremunoz.WindowsServices.svg?color=blue)](https://www.nuget.org/packages/peremunoz.WindowsServices)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/peremunoz.WindowsServices.svg)](https://www.nuget.org/packages/peremunoz.WindowsServices)
+[![.NET](https://img.shields.io/badge/.NET-8.0%2B-blueviolet)](https://dotnet.microsoft.com/)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue)](https://learn.microsoft.com/windows/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/O4O41NA0Y7)
+---
 
 ## Features
 
